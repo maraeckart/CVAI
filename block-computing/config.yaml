@@ -1,0 +1,119 @@
+input:
+  mode: video
+  path: videos/me_v1.mov # change input video path here
+  camera_index: 0
+
+processing:
+  resize_width: 960
+  debug_masks: true
+  detection_crop_bottom_ratio: 0.8
+
+
+#  YOLO detects people only.
+#  HSV detectors detect colored obstacles.
+person_filter:
+  enabled: true
+  method: yolo
+  model: yolov8n-seg.pt
+  confidence: 0.35
+  imgsz: 640
+  mask_dilation: 4
+  max_det: 5
+  person_as_obstacle: true
+
+# These are HSV/color detectors for now.
+detectors:
+  black_tape:
+    enabled: false
+    min_area: 700
+    max_area: 90000
+    value_threshold: 110
+    saturation_max: 180
+    min_pca_ratio: 4.0
+    open_kernel_size: 2
+    close_kernel_size: 7
+
+  yellow_tape:
+    enabled: false
+    min_area: 700
+
+  pink_postit:
+    enabled: false
+    min_area: 250
+    max_area: 20000
+    open_kernel_size: 3
+    close_kernel_size: 1
+
+object_rules:
+  person_yolo:
+    use_as_filter: true      # remove person pixels before obstacle detection
+    use_as_occluder: true    # hide dots behind the person
+    use_as_obstacle: true    # set true if you want dots to bounce off the body
+
+  pink_postit:
+    use_as_filter: false      # not useful yet
+    use_as_occluder: false
+    use_as_obstacle: true
+
+  yellow_tape:
+    use_as_filter: false      # not useful yet
+    use_as_occluder: false
+    use_as_obstacle: true
+
+  black_tape:
+    use_as_filter: false.    # not useful yet
+    use_as_occluder: false
+    use_as_obstacle: true
+
+physics:
+  ball_radius: 20
+  ball_color: white
+  ball_outline: none
+  render_3d: false
+
+  ball_count: 10
+  random_seed: 7
+  random_speed_min: 2.0
+  random_speed_max: 8
+
+  initial_position: [120, 80]
+  initial_velocity: [5.0, 3.5]
+
+  gravity: 0.35
+
+  spawn_enabled: true
+  spawn_interval_frames: 5
+  max_balls: 300
+  spawn_y: -20
+  spawn_x_min_ratio: 0.125
+  spawn_x_max_ratio: 0.875
+  spawn_vx_min: -1.0
+  spawn_vx_max: 1.0
+  spawn_vy_min: 0.0
+  spawn_vy_max: 1.5
+
+  #fall_through, collect, bounce
+  lower_boundary_mode: bounce
+
+  bounce_damping: 0.9
+  floor_friction: 0.9
+  max_speed: 20.0
+
+  ball_collision_enabled: true
+  ball_collision_iterations: 2
+  ball_restitution: 0.15
+  ball_friction: 0.92
+
+  obstacle_collision_iterations: 3
+  obstacle_pushout: 2.0
+
+
+output:
+  show_window: true
+  save_video: true
+  path: output/result-me_collect_less_balls.mp4
+  draw_detections: true
+  draw_person_filter: false
+  hide_balls_behind_person: false
+  show_person_mask: false
+  draw_person_mask_overlay: false
