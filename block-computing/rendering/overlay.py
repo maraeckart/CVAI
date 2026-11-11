@@ -21,6 +21,7 @@ class OverlayRenderer:
         self.draw_person_filter = bool(output_cfg.get("draw_person_filter", False))
         self.hide_balls_behind_person = bool(output_cfg.get("hide_balls_behind_person", True))
         self.draw_person_mask_overlay = bool(output_cfg.get("draw_person_mask_overlay", False))
+        self.draw_balls_in_video = bool(output_cfg.get("draw_balls_in_video", True))
 
     def _ensure_writer(self, frame):
         if not self.save_path or self.writer is not None:
@@ -134,17 +135,41 @@ class OverlayRenderer:
 
         self.draw_detections(output, all_draw_detections)
 
+        # Saved video without the virtual balls: only the real beamer light on the wall is visible
+        video_frame = None
+        if self.save_path and not self.draw_balls_in_video:
+            video_frame = output.copy()
+            self.draw_hud(video_frame, detections, balls, fps=fps)
+
         # Balls must receive occlusion_mask here
         self.draw_balls(output, balls, occlusion_mask=occlusion_mask)
 
         self.draw_hud(output, detections, balls, fps=fps)
 
-        self._ensure_writer(output)
+        if video_frame is None:
+            video_frame = output
+
+        self._ensure_writer(video_frame)
 
         if self.writer is not None:
-            self.writer.write(output)
+            self.writer.write(video_frame)
 
         return output
+
+    def render_projection(self, frame_shape, balls, occlusion_mask=None, detections=None):
+        """Projector content: balls on pure black, in camera-frame coordinates.
+
+        Black = no light, so only the balls appear on the physical surface. The camera
+        image itself is never projected (avoids the camera->beamer feedback loop).
+        Balls are cut out where the occlusion mask (person) is, so we do not project
+        onto people.
+        """
+        h, w = frame_shape[:2]
+        canvas = np.zeros((h, w, 3), dtype=np.uint8)
+        if detections and self.draw_detections_enabled:
+            self.draw_detections(canvas, detections)
+        self.draw_balls(canvas, balls, occlusion_mask=occlusion_mask)
+        return canvas
 
     def release(self):
         if self.writer is not None:

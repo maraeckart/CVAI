@@ -1,7 +1,10 @@
 input:
-  mode: video
+  mode: camera
   path: videos/me_v1.mov # change input video path here
-  camera_index: 0
+  camera_index: 1          # run list_cameras.py to find the right index
+  capture_width: 1280      # requested camera capture size (capture card / webcam)
+  capture_height: 720
+  capture_fps: 30
 
 processing:
   resize_width: 960
@@ -19,6 +22,7 @@ person_filter:
   imgsz: 640
   mask_dilation: 4
   max_det: 5
+  device: auto             # auto = Mac GPU (mps) if available, else cpu
   person_as_obstacle: true
 
 # These are HSV/color detectors for now.
@@ -61,20 +65,20 @@ object_rules:
     use_as_obstacle: true
 
   black_tape:
-    use_as_filter: false.    # not useful yet
+    use_as_filter: false     # not useful yet
     use_as_occluder: false
     use_as_obstacle: true
 
 physics:
-  ball_radius: 20
+  ball_radius: 30
   ball_color: white
   ball_outline: none
   render_3d: false
 
-  ball_count: 10
+  ball_count: 50
   random_seed: 7
   random_speed_min: 2.0
-  random_speed_max: 8
+  random_speed_max: 10.0
 
   initial_position: [120, 80]
   initial_velocity: [5.0, 3.5]
@@ -93,7 +97,7 @@ physics:
   spawn_vy_max: 1.5
 
   #fall_through, collect, bounce
-  lower_boundary_mode: bounce
+  lower_boundary_mode: fall_through
 
   bounce_damping: 0.9
   floor_friction: 0.9
@@ -111,9 +115,27 @@ physics:
 output:
   show_window: true
   save_video: true
-  path: output/result-me_collect_less_balls.mp4
+  draw_balls_in_video: false  # false = saved video shows only the camera image (real projected balls), true = with drawn balls
+  path: output/projector/06.mp4
   draw_detections: true
   draw_person_filter: false
   hide_balls_behind_person: false
   show_person_mask: false
   draw_person_mask_overlay: false
+
+  # Live beamer output. content "balls" = balls on black (use this live),
+  # "debug" = the full camera overlay (only for checking, causes feedback on the wall).
+  projector:
+    enabled: true
+    content: balls
+    width: 1920            # Crosstour P600 as macOS drives it ("MStar Demo", 1920x1080)
+    height: 1080
+    fullscreen: true
+    screen_x_offset: 1512  # beamer sits right of the 1512pt-wide laptop screen
+    screen_y_offset: 0
+    calibration_file: calibration/projector_homography.json
+    offset_x: 234          # fine-tune in beamer pixels. + = where you touch balls on the wall moves right. 234 measured from recording 02
+    offset_y: 50        # + = moves down (50 measured from recording 03). Nudge live with j/l/i/k, copy the printed values here
+    nudge_step: 10
+    simulate_in_projection: true   # physics world = projected area (needs calibration)
+    sim_width: 960                 # simulation resolution inside the projection
