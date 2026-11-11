@@ -18,48 +18,62 @@ def reflect_velocity(velocity: np.ndarray, normal: np.ndarray, damping: float = 
     return (velocity - 2 * np.dot(velocity, normal) * normal) * damping
 
 
+def obstacle_field(detection: Detection):
+    """Signed distance field of an obstacle mask, computed once per detection.
+
+    sd > 0 outside (distance to the obstacle), sd < 0 inside (depth below its edge).
+    The gradient of sd points away from the obstacle, so it is the collision normal
+    everywhere, including deep inside the mask.
+    """
+    field = getattr(detection, "_field", None)
+    if field is not None:
+        return field
+
+    inside = (detection.mask > 0).astype(np.uint8)
+    dist_out = cv2.distanceTransform((1 - inside) * 255, cv2.DIST_L2, 3)
+    dist_in = cv2.distanceTransform(inside * 255, cv2.DIST_L2, 3)
+    sd = (dist_out - dist_in).astype(np.float32)
+    sd = cv2.GaussianBlur(sd, (5, 5), 0)  # smoother normals on jagged YOLO edges
+    gx = cv2.Sobel(sd, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(sd, cv2.CV_32F, 0, 1, ksize=3)
+
+    field = (sd, gx, gy)
+    detection._field = field
+    return field
+
+
 def resolve_ball_mask_collision(ball: Ball, detection: Detection):
     """
-    collision: circle against the actual obstacle mask/contour.
+    Circle against the obstacle mask, using a signed distance field.
     Falls back to rectangle collision when no mask exists.
     """
     if detection.mask is None:
         return resolve_ball_rect_collision(ball, detection)
 
-    bx, by = int(ball.position[0]), int(ball.position[1])
-    r = int(ball.radius)
     h, w = detection.mask.shape[:2]
+    r = float(ball.radius)
+    bx, by = float(ball.position[0]), float(ball.position[1])
 
     if bx + r < 0 or bx - r >= w or by + r < 0 or by - r >= h:
         return False
 
-    circle_mask = np.zeros((h, w), dtype=np.uint8)
-    cv2.circle(circle_mask, (bx, by), r, 255, -1)
-    overlap = cv2.bitwise_and(circle_mask, detection.mask)
+    sd, gx, gy = obstacle_field(detection)
+    ix = int(clamp(round(bx), 0, w - 1))
+    iy = int(clamp(round(by), 0, h - 1))
 
-    if cv2.countNonZero(overlap) == 0:
+    dist = float(sd[iy, ix])
+    if dist >= r:
         return False
 
-    # Approximate collision normal from the nearest obstacle-mask pixel to ball center.
-    ys, xs = np.where(detection.mask > 0)
-    if len(xs) == 0:
-        return resolve_ball_rect_collision(ball, detection)
-
-    dx = ball.position[0] - xs.astype(float)
-    dy = ball.position[1] - ys.astype(float)
-    nearest_idx = int(np.argmin(dx * dx + dy * dy))
-    nearest = np.array([xs[nearest_idx], ys[nearest_idx]], dtype=float)
-    normal = ball.position - nearest
-
+    normal = np.array([gx[iy, ix], gy[iy, ix]], dtype=float)
     norm = float(np.linalg.norm(normal))
-    if norm < 1e-6:
-        normal = -ball.velocity.copy()
-        norm = float(np.linalg.norm(normal))
-    if norm < 1e-6:
-        normal = np.array([0.0, -1.0])
-    else:
-        normal = normal / norm
-    ball.position += normal * 2.0
+    normal = normal / norm if norm > 1e-6 else np.array([0.0, -1.0])
+
+    # Push out by the real overlap (+ small margin). Capped per call so a ball
+    # swept deep into the body leaves it over a few iterations instead of teleporting.
+    penetration = r - dist
+    pushout = float(getattr(ball, "obstacle_pushout", 2.0))
+    ball.position += normal * min(penetration + pushout, r * 1.5)
 
     if np.dot(ball.velocity, normal) < 0:
         ball.velocity = reflect_velocity(ball.velocity, normal, ball.damping)

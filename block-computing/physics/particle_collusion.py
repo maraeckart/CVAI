@@ -72,11 +72,13 @@ def resolve_ball_ball_collisions(
                 a.velocity -= impulse
                 b.velocity += impulse
 
-                # Tangential damping for heap-like behavior.
+                # Tangential friction for heap-like behavior. It must act on the
+                # RELATIVE sliding velocity only: damping each ball's absolute
+                # velocity made a whole clump brake itself while falling, so it
+                # sank slowly instead of falling ("floating balls").
                 tangent = np.array([-normal[1], normal[0]], dtype=float)
+                rel_t = float(np.dot(b.velocity - a.velocity, tangent))
+                friction_impulse = tangent * rel_t * (1.0 - friction) * 0.5
 
-                va_t = np.dot(a.velocity, tangent)
-                vb_t = np.dot(b.velocity, tangent)
-
-                a.velocity -= tangent * va_t * (1.0 - friction)
-                b.velocity -= tangent * vb_t * (1.0 - friction)
+                a.velocity += friction_impulse
+                b.velocity -= friction_impulse
