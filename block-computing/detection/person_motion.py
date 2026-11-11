@@ -5,12 +5,6 @@ from detection.base import Detection, ObstacleDetector
 
 
 class PersonMotionDetector(ObstacleDetector):
-    """
-    Simple movement detector fallback for 'only myself' tests.
-    This does not know what a person is; it detects moving foreground regions.
-    Prefer PersonYoloDetector when possible.
-    """
-
     name = "person_motion"
 
     def __init__(self, min_area: int = 2500):

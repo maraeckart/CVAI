@@ -30,13 +30,23 @@ class BallSpawner:
     def spawn(self, frame_width):
         radius = int(self.cfg.get("ball_radius", 7))
 
-        x_min = self.cfg.get("spawn_x_min", radius)
-        x_max = self.cfg.get("spawn_x_max", None)
+        x_min_ratio = self.cfg.get("spawn_x_min_ratio", None)
+        x_max_ratio = self.cfg.get("spawn_x_max_ratio", None)
 
-        if x_max is None:
-            x_max = frame_width - radius
+        if x_min_ratio is not None and x_max_ratio is not None:
+            x_min = frame_width * float(x_min_ratio)
+            x_max = frame_width * float(x_max_ratio)
+        else:
+            x_min = self.cfg.get("spawn_x_min", radius)
+            x_max = self.cfg.get("spawn_x_max", None)
 
-        x = self.rng.uniform(float(x_min), float(x_max))
+            if x_max is None:
+                x_max = frame_width - radius
+
+        x_min = max(float(x_min), radius)
+        x_max = min(float(x_max), frame_width - radius)
+
+        x = self.rng.uniform(x_min, x_max)
         y = float(self.cfg.get("spawn_y", -radius * 2))
 
         vx = self.rng.uniform(

@@ -1,16 +1,12 @@
 """
 Small helper for tuning HSV thresholds.
-
 Usage:
     python calibrate_hsv.py videos/test.mp4
-
 Click/inspect pixels by moving the mouse. The current HSV value is printed in the window.
 """
 
 import sys
-
 import cv2
-
 
 current_hsv = None
 
