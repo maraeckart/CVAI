@@ -22,6 +22,7 @@ class PersonYoloDetector(ObstacleDetector):
         imgsz: int = 640,
         mask_dilation: int = 15,
         max_det: int = 5,
+        device: str | None = "auto",
     ):
         try:
             from ultralytics import YOLO
@@ -31,6 +32,14 @@ class PersonYoloDetector(ObstacleDetector):
             ) from exc
 
         self.model = YOLO(model)
+        if device == "auto":
+            try:
+                import torch
+                device = "mps" if torch.backends.mps.is_available() else "cpu"
+            except Exception:
+                device = "cpu"
+        self.device = device
+        print(f"[yolo] running on {self.device}")
         self.confidence = confidence
         self.imgsz = imgsz
         self.mask_dilation = mask_dilation
@@ -46,6 +55,7 @@ class PersonYoloDetector(ObstacleDetector):
             conf=self.confidence,
             imgsz=self.imgsz,
             max_det=self.max_det,
+            device=self.device,
             verbose=False,
         )
 

@@ -23,6 +23,7 @@ def build_person_detector(config: dict):
             imgsz=int(cfg.get("imgsz", 640)),
             mask_dilation=int(cfg.get("mask_dilation", 15)),
             max_det=int(cfg.get("max_det", 5)),
+            device=cfg.get("device", "auto"),
         )
 
     raise ValueError(f"Unknown person_filter method: {method}")
