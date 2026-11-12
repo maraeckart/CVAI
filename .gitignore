@@ -8,4 +8,5 @@ block-computing/output/
 *.mp4
 
 __pycache__/
-*.pyc.DS_Store
+*.pyc
+.DS_Store
